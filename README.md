@@ -11,6 +11,80 @@ You will build a chat application with the following features:
 4. Real-time notifications
 5. Advanced features like typing indicators and read receipts
 
+## Features Implemented (Week 5 Mapping)
+
+- Task 1 — Setup
+  - Express server with Socket.io, CORS, dotenv
+  - React + Vite client with socket.io-client
+  - Client–server connection via `VITE_SOCKET_URL` or proxy
+
+- Task 2 — Core Chat
+  - Username login (simple auth)
+  - Global room (default `general`)
+  - Messages with sender + timestamp
+  - Typing indicators
+  - Online/offline presence and user list
+
+- Task 3 — Advanced Features
+  - Private messaging (UI + server + typing for PM)
+  - Multiple rooms/channels (create/join, room history)
+  - Image/file sharing (base64; inline images, download for others)
+
+- Task 4 — Notifications
+  - System join/leave messages
+  - Unread counts per room (badges)
+  - Desktop notifications when unfocused
+  - Sound ping on new message when unfocused
+
+## How to Run Locally
+
+Prereqs: Node.js v18+
+
+1) Install dependencies
+```
+cd server && npm install
+cd ../client && npm install
+```
+
+2) Environment (optional)
+```
+# server/.env
+PORT=5000
+
+# client/.env
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+3) Start dev servers (two terminals)
+```
+# Terminal A
+cd server
+npm run dev
+
+# Terminal B
+cd client
+npm run dev
+```
+
+4) Open the app
+- Client: http://localhost:5173
+- Server health: http://localhost:5000
+
+## Usage Tips
+
+- Open two browser windows, log in with different usernames
+- Use Rooms sidebar to create/join channels
+- Click 💬 next to a user to open a private chat window
+- Paperclip in the message box to share an image/file
+- Allow browser notifications to receive desktop alerts
+
+## Screenshots / GIFs
+
+- Global chat in room `general`: ./docs/screenshots/global-chat.jpg
+- Private chat window: ./docs/screenshots/private-chat.jpg
+- Rooms and unread badges: ./docs/screenshots/rooms-unread.jpg
+- File sharing (inline image): ./docs/screenshots/file-sharing.jpg
+
 ## Project Structure
 
 ```

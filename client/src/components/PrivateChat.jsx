@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const PrivateChat = ({
   recipientId,
@@ -51,7 +51,7 @@ const PrivateChat = ({
             className={`private-message ${msg.sender === currentUser ? 'sent' : 'received'}`}
           >
             <div className="message-content">
-              <p>{msg.text}</p>
+              <p>{msg.message || msg.text}</p>
               <span className="message-time">
                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>

@@ -28,8 +28,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Store connected users and messages
 const users = {};
-const messages = [];
-const typingUsers = {};
+const rooms = new Set(['general']);
+const messagesByRoom = { general: [] };
+const typingUsers = {}; // keyed by socket.id -> username (current room-scoped upon emit)
 
 // Socket.io connection handler
 io.on('connection', (socket) => {
@@ -40,41 +41,51 @@ io.on('connection', (socket) => {
     users[socket.id] = { username, id: socket.id };
     io.emit('user_list', Object.values(users));
     io.emit('user_joined', { username, id: socket.id });
+    // auto-join default room
+    const defaultRoom = 'general';
+    socket.join(defaultRoom);
+    socket.data.room = defaultRoom;
+    // send rooms and current room history
+    io.emit('rooms', Array.from(rooms));
+    socket.emit('room_joined', { room: defaultRoom });
+    socket.emit('room_history', { room: defaultRoom, messages: messagesByRoom[defaultRoom] || [] });
     console.log(`${username} joined the chat`);
   });
 
-  // Handle chat messages
+  // Handle chat messages (scoped to current room)
   socket.on('send_message', (messageData) => {
+    const room = socket.data.room || 'general';
     const message = {
       ...messageData,
       id: Date.now(),
       sender: users[socket.id]?.username || 'Anonymous',
       senderId: socket.id,
       timestamp: new Date().toISOString(),
+      room,
     };
-    
-    messages.push(message);
-    
-    // Limit stored messages to prevent memory issues
-    if (messages.length > 100) {
-      messages.shift();
+    // store per room
+    if (!messagesByRoom[room]) messagesByRoom[room] = [];
+    messagesByRoom[room].push(message);
+    // Limit stored messages per room
+    if (messagesByRoom[room].length > 200) {
+      messagesByRoom[room].shift();
     }
-    
-    io.emit('receive_message', message);
+    // emit only to room
+    io.to(room).emit('receive_message', message);
   });
 
-  // Handle typing indicator
+  // Handle typing indicator (scoped to current room)
   socket.on('typing', (isTyping) => {
     if (users[socket.id]) {
       const username = users[socket.id].username;
-      
+      const room = socket.data.room || 'general';
       if (isTyping) {
         typingUsers[socket.id] = username;
       } else {
         delete typingUsers[socket.id];
       }
-      
-      io.emit('typing_users', Object.values(typingUsers));
+      // Only emit to current room
+      io.to(room).emit('typing_users', Object.values(typingUsers));
     }
   });
 
@@ -84,6 +95,7 @@ io.on('connection', (socket) => {
       id: Date.now(),
       sender: users[socket.id]?.username || 'Anonymous',
       senderId: socket.id,
+      to,
       message,
       timestamp: new Date().toISOString(),
       isPrivate: true,
@@ -91,6 +103,38 @@ io.on('connection', (socket) => {
     
     socket.to(to).emit('private_message', messageData);
     socket.emit('private_message', messageData);
+  });
+
+  // Handle private typing indicator
+  socket.on('private_typing', ({ to, isTyping }) => {
+    // Notify only the intended recipient
+    socket.to(to).emit('user_typing_private', { userId: socket.id, isTyping });
+  });
+
+  // Rooms: create and join
+  socket.on('room_create', (name) => {
+    const room = String(name || '').trim();
+    if (!room) return;
+    rooms.add(room);
+    if (!messagesByRoom[room]) messagesByRoom[room] = [];
+    io.emit('rooms', Array.from(rooms));
+  });
+
+  socket.on('room_join', (name) => {
+    const room = String(name || '').trim();
+    if (!room) return;
+    if (!rooms.has(room)) {
+      rooms.add(room);
+      messagesByRoom[room] = [];
+      io.emit('rooms', Array.from(rooms));
+    }
+    // leave previous room
+    const prev = socket.data.room;
+    if (prev) socket.leave(prev);
+    socket.join(room);
+    socket.data.room = room;
+    socket.emit('room_joined', { room });
+    socket.emit('room_history', { room, messages: messagesByRoom[room] || [] });
   });
 
   // Handle disconnection
@@ -111,7 +155,8 @@ io.on('connection', (socket) => {
 
 // API routes
 app.get('/api/messages', (req, res) => {
-  res.json(messages);
+  const room = (req.query.room || 'general');
+  res.json(messagesByRoom[room] || []);
 });
 
 app.get('/api/users', (req, res) => {

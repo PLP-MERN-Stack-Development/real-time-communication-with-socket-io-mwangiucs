@@ -22,7 +22,24 @@ const MessageList = ({ messages, currentUser, typingUsers }) => {
               <div className="message-sender">{message.sender}</div>
             )}
             <div className="message-content">
-              <p>{message.text}</p>
+              {message.text && <p>{message.text}</p>}
+              {message.attachment && (
+                message.attachment.mime?.startsWith('image/') ? (
+                  <img 
+                    src={message.attachment.data} 
+                    alt={message.attachment.filename || 'image'} 
+                    style={{ maxWidth: '220px', borderRadius: '6px', marginTop: '6px' }}
+                  />
+                ) : (
+                  <a 
+                    href={message.attachment.data} 
+                    download={message.attachment.filename || 'file'}
+                    className="file-download-link"
+                  >
+                    {message.attachment.filename || 'Download file'}
+                  </a>
+                )
+              )}
               <span className="message-time">
                 {formatTime(message.timestamp)}
               </span>
